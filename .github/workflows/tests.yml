@@ -1,0 +1,53 @@
+name: Run Tests
+
+on:
+  push:
+    # Chạy CI khi push bất kỳ branch nào
+  pull_request:
+    # Chạy CI khi có pull request vào bất kỳ branch nào
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore
+
+    - name: Run tests with coverage
+      run: |
+        dotnet test \
+          --no-build \
+          --verbosity normal \
+          --logger "console;verbosity=normal" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory:"${{ github.workspace }}/TestResults" \
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ${{ github.workspace }}/TestResults/**/coverage.cobertura.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: ${{ github.workspace }}/TestResults
+        retention-days: 30
+
