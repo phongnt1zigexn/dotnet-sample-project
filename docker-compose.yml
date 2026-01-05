@@ -12,6 +12,31 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
     restart: unless-stopped
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Password123" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: ./SampleApi
+      dockerfile: Dockerfile
+    container_name: sample-api
+    ports:
+      - "5190:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SampleApiDb;User Id=sa;Password=YourStrong@Password123;TrustServerCertificate=True
+      - JwtSettings__SecretKey=YourSuperSecretKeyForJwtTokenGenerationMustBeAtLeast32Characters
+      - JwtSettings__Issuer=SampleApi
+      - JwtSettings__Audience=SampleApiClients
+      - JwtSettings__ExpiryMinutes=60
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   sqlserver_data:
